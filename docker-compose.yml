@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: aventer-postgres-dev
+    environment:
+      POSTGRES_USER: aventer
+      POSTGRES_PASSWORD: aventer
+      POSTGRES_DB: aventer
+    ports:
+      - "5432:5432"
+    volumes:
+      - aventer-pg-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aventer -d aventer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  aventer-pg-dev:

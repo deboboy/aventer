@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { corsMiddleware } from "./cors.js";
 import { agentEventV1Schema } from "@aventer/schema";
+import { checkDatabaseConnection, initDatabase, isDatabaseEnabled } from "./init-db.js";
 import {
   listEvents,
   resolveProjectFromApiKey,
@@ -14,7 +15,21 @@ const app = new Hono();
 
 app.use("*", corsMiddleware());
 
-app.get("/health", (c) => c.json({ status: "ok", service: "aventer-api" }));
+app.get("/health", async (c) => {
+  const db = isDatabaseEnabled();
+  let dbStatus: "connected" | "memory" | "error" = db ? "connected" : "memory";
+
+  if (db) {
+    try {
+      await checkDatabaseConnection();
+    } catch {
+      dbStatus = "error";
+      return c.json({ status: "degraded", service: "aventer-api", db: dbStatus }, 503);
+    }
+  }
+
+  return c.json({ status: "ok", service: "aventer-api", db: dbStatus });
+});
 
 app.post("/v1/events", async (c) => {
   const auth = c.req.header("Authorization");
@@ -40,11 +55,11 @@ app.post("/v1/events", async (c) => {
     return c.json({ error: "invalid_event", details: parsed.error.flatten() }, 400);
   }
 
-  const stored = storeEvent(parsed.data, projectId);
+  const stored = await storeEvent(parsed.data, projectId);
   return c.json({ id: stored.id, received_at: stored.received_at }, 202);
 });
 
-app.get("/v1/events", (c) => {
+app.get("/v1/events", async (c) => {
   const auth = c.req.header("Authorization");
   if (!auth?.startsWith("Bearer ")) {
     return c.json({ error: "missing_api_key" }, 401);
@@ -56,7 +71,8 @@ app.get("/v1/events", (c) => {
   }
 
   const limit = Number(c.req.query("limit") ?? "50");
-  return c.json({ events: listEvents(projectId, limit) });
+  const events = await listEvents(projectId, limit);
+  return c.json({ events });
 });
 
 function resolveApiKeyFromRequest(c: {
@@ -103,6 +119,8 @@ app.get("/v1/events/stream", (c) => {
 });
 
 const port = Number(process.env.PORT ?? "3001");
+
+await initDatabase();
 
 serve({ fetch: app.fetch, port }, () => {
   console.log(`Aventer API listening on http://localhost:${port}`);

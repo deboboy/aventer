@@ -120,17 +120,71 @@ Required in production so the dashboard SSE client talks to your API host (local
 - [x] SDK `emit()`
 - [x] CLI `init`, `login`, `listen`, `status`
 - [x] Dashboard SSE live stream
+- [x] Postgres event persistence
 - [ ] Delivery worker + HMAC signing
 - [ ] Subscriber registry + `createHandler()`
 - [ ] `aventer listen` tunnel to cloud
 
 See `LastMyle/Content/Agents Events Webhooks/AEW_BETA_PROTOTYPE_PLAN.md` for the full beta plan.
 
+## Postgres
+
+### Local dev
+
+```bash
+docker compose up -d
+cp services/api/.env.example services/api/.env
+# or add DATABASE_URL to repo .env.local
+
+npm run build:api
+DATABASE_URL=postgresql://aventer:aventer@localhost:5432/aventer npm run dev:api
+curl -s http://localhost:3001/health
+# {"status":"ok","service":"aventer-api","db":"connected"}
+```
+
+### Hetzner VPS
+
+On the VPS as **root** (from a fresh clone or after `git pull`):
+
+```bash
+cd /opt/aventer
+chmod +x scripts/postgres-vps-setup.sh
+./scripts/postgres-vps-setup.sh
+```
+
+The script prints a `DATABASE_URL` — add it to `/etc/aventer/env`:
+
+```bash
+sudo nano /etc/aventer/env
+```
+
+```bash
+DATABASE_URL=postgresql://aventer:<password>@localhost:5432/aventer
+```
+
+Deploy API code and restart:
+
+```bash
+sudo -u aventer git -C /opt/aventer pull origin main
+sudo -u aventer bash -lc 'cd /opt/aventer && npm ci && npm run build:api'
+sudo systemctl restart aventer-api
+curl -s https://api.aventer.dev/health
+# expect "db":"connected"
+```
+
+Migrations run automatically on API startup. Manual run: `npm run db:migrate -w @aventer/api` (after build).
+
 ## Environment variables
+
+**API (`/etc/aventer/env` on VPS, or `services/api/.env` locally):**
 
 ```bash
 PORT=3001
-AVENTER_BETA_API_KEY=avn_beta_dev_key_change_me
+NODE_ENV=production
+AVENTER_BETA_API_KEY=avn_beta_<secret>
+DATABASE_URL=postgresql://aventer:<password>@localhost:5432/aventer
 ```
 
-Copy `.env.example` to `.env` in `services/api/` for local overrides.
+Without `DATABASE_URL`, the API falls back to in-memory storage (events lost on restart).
+
+Copy `services/api/.env.example` for local overrides.

@@ -71,6 +71,17 @@ await emit("task.completed", { task_id: "123", tokens: 4200 });
 
 Local dev uses `localhost:3001` (API) and `localhost:5173` (dashboard).
 
+## Deploy dashboard to Vercel
+
+**Only deploy the dashboard on Vercel** — the API runs on Hetzner (see `DEPLOYMENT_PLAN.md`).
+
+1. Import `github.com/deboboy/aventer` in Vercel
+2. **Root Directory:** leave as `.` (repo root) — `vercel.json` at root builds the dashboard only  
+   - Or set Root Directory to `services/dashboard` (uses `services/dashboard/vercel.json`)
+3. **Do not** set Root Directory to `services/api` — that package is not for Vercel
+4. Environment variable: `VITE_API_URL` = `https://api.aventer.dev` (or your API URL)
+5. Custom domain: `beta.aventer.dev`
+
 ## Phase 1 status
 
 - [x] `agent-v1` schema

@@ -36,7 +36,10 @@ connectBtn.addEventListener("click", () => {
   }
 
   // EventSource cannot set Authorization header; beta uses query param.
-  source = new EventSource(`/v1/events/stream?api_key=${encodeURIComponent(apiKey)}`);
+  const apiBase = import.meta.env.VITE_API_URL ?? "";
+  source = new EventSource(
+    `${apiBase}/v1/events/stream?api_key=${encodeURIComponent(apiKey)}`
+  );
   statusEl.textContent = "connecting…";
 
   source.addEventListener("connected", () => {

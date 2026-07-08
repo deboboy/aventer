@@ -1,0 +1,8 @@
+{
+  "name": "aventer-examples",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aventer/sdk": "0.0.1"
+  }
+}

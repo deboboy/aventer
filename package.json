@@ -1,0 +1,19 @@
+{
+  "name": "aventer",
+  "private": true,
+  "description": "Event layer for production AI agents — aventer.dev",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "examples"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev:api": "npm run dev -w @aventer/api",
+    "dev:dashboard": "npm run dev -w @aventer/dashboard",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

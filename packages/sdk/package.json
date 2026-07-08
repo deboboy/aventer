@@ -1,0 +1,26 @@
+{
+  "name": "@aventer/sdk",
+  "version": "0.0.1",
+  "description": "Emit and subscribe to agent events via Aventer",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@aventer/schema": "0.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

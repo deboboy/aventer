@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aventer — Live Events</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Aventer</h1>
+        <p class="subtitle">Live agent events — beta.aventer.dev</p>
+      </header>
+      <section class="controls">
+        <label>
+          API key
+          <input id="apiKey" type="password" placeholder="avn_beta_..." />
+        </label>
+        <button id="connect">Connect</button>
+        <span id="status" class="status">disconnected</span>
+      </section>
+      <section id="events" class="events"></section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

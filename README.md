@@ -75,12 +75,41 @@ Local dev uses `localhost:3001` (API) and `localhost:5173` (dashboard).
 
 **Only deploy the dashboard on Vercel** — the API runs on Hetzner (see `DEPLOYMENT_PLAN.md`).
 
-1. Import `github.com/deboboy/aventer` in Vercel
-2. **Root Directory:** leave as `.` (repo root) — `vercel.json` at root builds the dashboard only  
-   - Or set Root Directory to `services/dashboard` (uses `services/dashboard/vercel.json`)
-3. **Do not** set Root Directory to `services/api` — that package is not for Vercel
-4. Environment variable: `VITE_API_URL` = `https://api.aventer.dev` (or your API URL)
-5. Custom domain: `beta.aventer.dev`
+### Vercel project settings
+
+| Setting | Value |
+|---|---|
+| **Root Directory** | **`services/dashboard`** |
+| Framework Preset | Other (or leave as detected; `vercel.json` overrides build) |
+| Build Command | *(from `services/dashboard/vercel.json`)* `cd ../.. && npm run build:dashboard` |
+| Output Directory | `dist` |
+| Install Command | *(from `services/dashboard/vercel.json`)* `cd ../.. && npm ci` |
+
+**Use `services/dashboard` as Root Directory.** Vercel defaults to the repo root or may detect `services/api`; either causes a failed build (`Cannot find module '@aventer/schema'`) because the API is not a Vercel target.
+
+Do **not** set Root Directory to:
+
+- `.` (repo root) — unless you prefer the root `vercel.json`; `services/dashboard` is simpler
+- `services/api` — backend service; deploy on Hetzner instead
+
+### Environment variables
+
+| Name | Value |
+|---|---|
+| `VITE_API_URL` | `https://api.aventer.dev` |
+
+Required in production so the dashboard SSE client talks to your API host (local dev uses the Vite proxy when this is unset).
+
+### Custom domain
+
+- `beta.aventer.dev` → this Vercel project
+
+### Setup checklist
+
+1. Import [github.com/deboboy/aventer](https://github.com/deboboy/aventer) in Vercel
+2. **Project Settings → General → Root Directory** → set to `services/dashboard` → Save
+3. **Project Settings → Environment Variables** → add `VITE_API_URL`
+4. Redeploy
 
 ## Phase 1 status
 

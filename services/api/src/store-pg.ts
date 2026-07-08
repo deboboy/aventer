@@ -60,7 +60,10 @@ export async function storeEventPg(
     ]
   );
 
-  return rowToStoredEvent(result.rows[0]!);
+  const stored = rowToStoredEvent(result.rows[0]!);
+  const { enqueueDeliveriesForEvent } = await import("./delivery/enqueue.js");
+  await enqueueDeliveriesForEvent(stored);
+  return stored;
 }
 
 export async function listEventsPg(

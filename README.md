@@ -10,6 +10,7 @@ Aventer normalizes agent events into a canonical schema, delivers them reliably 
 aventer/
 ├── packages/
 │   ├── schema/     @aventer/schema   — agent-v1 types + JSON Schema
+│   ├── delivery/   @aventer/delivery — signing, retries, URL validation
 │   ├── sdk/        @aventer/sdk      — emit(), configure()
 │   └── cli/        @aventer/cli      — aventer init | login | listen
 ├── services/
@@ -121,8 +122,9 @@ Required in production so the dashboard SSE client talks to your API host (local
 - [x] CLI `init`, `login`, `listen`, `status`
 - [x] Dashboard SSE live stream
 - [x] Postgres event persistence
-- [ ] Delivery worker + HMAC signing
-- [ ] Subscriber registry + `createHandler()`
+- [x] Delivery worker + HMAC signing + DLQ
+- [x] Subscriber registry API
+- [ ] SDK `createHandler()` for subscribers
 - [ ] `aventer listen` tunnel to cloud
 
 See `LastMyle/Content/Agents Events Webhooks/AEW_BETA_PROTOTYPE_PLAN.md` for the full beta plan.
@@ -173,6 +175,62 @@ curl -s https://api.aventer.dev/health
 ```
 
 Migrations run automatically on API startup. Manual run: `npm run db:migrate -w @aventer/api` (after build).
+
+## Delivery worker
+
+Outbound webhooks: when events are ingested, matching subscribers get queued deliveries. The worker POSTs signed payloads with retries (6 attempts) then DLQ.
+
+### Register a subscriber
+
+```bash
+curl -s -X POST https://api.aventer.dev/v1/subscribers \
+  -H "Authorization: Bearer $AVENTER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-app.com/webhooks/aventer",
+    "secret": "whsec_your_secret",
+    "event_types": ["task.completed", "task.failed"]
+  }'
+```
+
+Omit `event_types` (or `[]`) to receive all events. URLs must be **HTTPS** (no private IPs).
+
+### Local webhook test
+
+```bash
+# Terminal 1
+WEBHOOK_SECRET=whsec_test node examples/webhook-receiver.mjs 4000
+
+# Terminal 2 — register (use ngrok/cloudflared URL in production test)
+curl -X POST http://localhost:3001/v1/subscribers \
+  -H "Authorization: Bearer avn_beta_dev_key_change_me" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://YOUR_TUNNEL/webhook","secret":"whsec_test"}'
+
+# Terminal 3
+npm run emit
+```
+
+### Hetzner worker systemd
+
+```bash
+sudo cp /opt/aventer/scripts/aventer-worker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now aventer-worker
+sudo systemctl status aventer-worker
+```
+
+Deploy: `npm run build:worker` then `systemctl restart aventer-worker`.
+
+### Delivery observability
+
+```bash
+curl -s -H "Authorization: Bearer $AVENTER_API_KEY" \
+  "https://api.aventer.dev/v1/deliveries?status=dlq"
+
+curl -s -X POST -H "Authorization: Bearer $AVENTER_API_KEY" \
+  "https://api.aventer.dev/v1/deliveries/del_xxx/replay"
+```
 
 ## Environment variables
 

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -30,8 +30,14 @@ export async function closePool(): Promise<void> {
 
 export async function runMigrations(): Promise<void> {
   const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "../migrations");
-  const sql = await readFile(join(migrationsDir, "001_init.sql"), "utf8");
-  await getPool().query(sql);
+  const files = (await readdir(migrationsDir))
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+
+  for (const file of files) {
+    const sql = await readFile(join(migrationsDir, file), "utf8");
+    await getPool().query(sql);
+  }
 }
 
 export async function checkDatabaseConnection(): Promise<boolean> {

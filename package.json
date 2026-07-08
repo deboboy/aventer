@@ -10,7 +10,8 @@
   "scripts": {
     "build": "npm run build -w @aventer/schema && npm run build --workspaces --if-present",
     "build:dashboard": "npm run build -w @aventer/dashboard",
-    "build:api": "npm run build -w @aventer/schema && npm run build -w @aventer/api",
+    "build:api": "npm run build -w @aventer/schema && npm run build -w @aventer/delivery && npm run build -w @aventer/api",
+    "build:worker": "npm run build -w @aventer/schema && npm run build -w @aventer/delivery && npm run build -w @aventer/worker",
     "dev:api": "npm run dev -w @aventer/api",
     "dev:dashboard": "npm run dev -w @aventer/dashboard",
     "emit": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs examples/emit.ts",

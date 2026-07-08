@@ -1,0 +1,14 @@
+[Unit]
+Description=Aventer delivery worker
+After=network.target docker.service aventer-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/aventer/services/worker
+EnvironmentFile=/etc/aventer/env
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

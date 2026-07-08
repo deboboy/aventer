@@ -10,10 +10,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@aventer/schema": "0.0.1"
+    "@aventer/delivery": "0.0.1",
+    "@aventer/schema": "0.0.1",
+    "pg": "^8.16.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "@types/pg": "^8.15.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }

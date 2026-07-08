@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@aventer/delivery": "0.0.1",
     "@aventer/sdk": "0.0.1"
   }
 }

@@ -1,13 +1,28 @@
-/**
- * Phase 1 stub — delivery worker with retry + DLQ lands in Phase 2.
- * Run alongside @aventer/api once Postgres + pg-boss are wired.
- */
+import { closePool } from "./db.js";
+import { processDueDeliveries } from "./deliver.js";
 
-const POLL_MS = 5000;
+const POLL_MS = Number(process.env.WORKER_POLL_MS ?? "1000");
 
-console.log("Aventer worker (stub) — delivery queue not yet connected.");
-console.log("Phase 2: HTTP outbound, 6-attempt retry, DLQ replay.");
+console.log(`Aventer delivery worker starting (poll ${POLL_MS}ms)`);
 
-setInterval(() => {
-  // Placeholder heartbeat for process supervisors
-}, POLL_MS);
+async function tick(): Promise<void> {
+  try {
+    const count = await processDueDeliveries();
+    if (count > 0) {
+      console.log(`Processed ${count} delivery(ies)`);
+    }
+  } catch (err) {
+    console.error("Worker tick failed:", err);
+  }
+}
+
+await tick();
+setInterval(tick, POLL_MS);
+
+async function shutdown(): Promise<void> {
+  await closePool();
+  process.exit(0);
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

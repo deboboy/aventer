@@ -39,6 +39,6 @@ echo "DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NA
 echo ""
 echo "Then:"
 echo "  cd /opt/aventer && sudo -u aventer git pull origin main"
-echo "  sudo -u aventer bash -lc 'cd /opt/aventer && npm ci && npm run build:api'"
-echo "  sudo systemctl restart aventer-api"
+echo "  sudo -u aventer bash -lc 'cd /opt/aventer && npm ci && npm run build:api && npm run build:worker'"
+echo "  sudo systemctl restart aventer-api aventer-worker"
 echo "  curl -s https://api.aventer.dev/health"

@@ -9,7 +9,11 @@ import {
 import { DEFAULT_API_URL, getConfig } from "./config.js";
 
 function resolveApiKey(explicit?: string): string {
-  const key = explicit ?? getConfig().apiKey ?? process.env.AVENTER_API_KEY;
+  const key =
+    explicit ??
+    getConfig().apiKey ??
+    process.env.AVENTER_API_KEY ??
+    process.env.AVENTER_BETA_API_KEY;
   if (!key) {
     throw new Error(
       "Aventer API key required. Set AVENTER_API_KEY or call configure({ apiKey })."

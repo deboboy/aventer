@@ -60,7 +60,9 @@ export function createProjectId(): string {
 }
 
 export const BETA_API_KEY =
-  process.env.AVENTER_BETA_API_KEY ?? "avn_beta_dev_key_change_me";
+  process.env.AVENTER_BETA_API_KEY ??
+  process.env.AVENTER_API_KEY ??
+  "avn_beta_dev_key_change_me";
 
 export function resolveProjectFromApiKey(apiKey: string): string | null {
   if (apiKey === BETA_API_KEY) return "proj_beta_default";

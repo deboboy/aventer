@@ -13,6 +13,7 @@
     "build:api": "npm run build -w @aventer/schema && npm run build -w @aventer/api",
     "dev:api": "npm run dev -w @aventer/api",
     "dev:dashboard": "npm run dev -w @aventer/dashboard",
+    "emit": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs examples/emit.ts",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "engines": {

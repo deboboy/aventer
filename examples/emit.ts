@@ -2,7 +2,10 @@ import { configure, emit } from "@aventer/sdk";
 
 async function main() {
   configure({
-    apiKey: process.env.AVENTER_API_KEY ?? "avn_beta_dev_key_change_me",
+    apiKey:
+      process.env.AVENTER_API_KEY ??
+      process.env.AVENTER_BETA_API_KEY ??
+      "avn_beta_dev_key_change_me",
     apiUrl: process.env.AVENTER_API_URL ?? "http://localhost:3001",
     agentId: "example-agent",
     orgId: "example-org",

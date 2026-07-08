@@ -3,5 +3,8 @@
   "framework": null,
   "installCommand": "cd ../.. && npm ci",
   "buildCommand": "cd ../.. && npm run build:dashboard",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "env": {
+    "VITE_API_URL": "https://api.aventer.dev"
+  }
 }

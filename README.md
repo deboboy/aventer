@@ -98,6 +98,8 @@ Do **not** set Root Directory to:
 |---|---|
 | `VITE_API_URL` | `https://api.aventer.dev` |
 
+Also set in `services/dashboard/vercel.json` for builds. Production builds default to `https://api.aventer.dev` if unset. Without this, the dashboard calls `/v1/events/stream` on Vercel (404) instead of the API.
+
 Required in production so the dashboard SSE client talks to your API host (local dev uses the Vite proxy when this is unset).
 
 ### Custom domain

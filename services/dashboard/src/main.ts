@@ -36,7 +36,9 @@ connectBtn.addEventListener("click", () => {
   }
 
   // EventSource cannot set Authorization header; beta uses query param.
-  const apiBase = import.meta.env.VITE_API_URL ?? "";
+  const apiBase =
+    import.meta.env.VITE_API_URL ??
+    (import.meta.env.PROD ? "https://api.aventer.dev" : "");
   source = new EventSource(
     `${apiBase}/v1/events/stream?api_key=${encodeURIComponent(apiKey)}`
   );

@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { agentEventV1Schema } from "@aventer/schema";
 import {
@@ -10,6 +11,23 @@ import {
 } from "./store.js";
 
 const app = new Hono();
+
+const corsOrigins = (
+  process.env.CORS_ORIGINS ??
+  "https://aventer.dev,https://www.aventer.dev,http://localhost:5173"
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  "*",
+  cors({
+    origin: corsOrigins,
+    allowHeaders: ["Authorization", "Content-Type"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
+  })
+);
 
 app.get("/health", (c) => c.json({ status: "ok", service: "aventer-api" }));
 

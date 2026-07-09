@@ -43,7 +43,31 @@ Default login credentials:
 - Username: `admin`
 - Password: `changeme123`
 
-⚠️ **Change the default password in production!** See [BETA_AUTHENTICATION.md](./BETA_AUTHENTICATION.md)
+⚠️ **Change the default password in production immediately** (see below). Full docs: [BETA_AUTHENTICATION.md](./BETA_AUTHENTICATION.md)
+
+### Change the default admin password
+
+There is no password-change UI yet — use the API:
+
+```bash
+# 1. Get an admin token
+TOKEN=$(curl -s -X POST https://api.aventer.dev/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"changeme123"}' \
+  | jq -r '.token')
+
+# 2. Set a new password (default admin id: usr_admin_default)
+curl -s -X PUT https://api.aventer.dev/v1/admin/users/usr_admin_default/password \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"password":"YOUR_NEW_STRONG_PASSWORD"}'
+```
+
+Expect `{"updated":true}`. Log out of the dashboard and sign in with your new password.
+
+To look up a user id: `curl -s -H "Authorization: Bearer $TOKEN" https://api.aventer.dev/v1/admin/users | jq`
+
+Alternative: create a new admin at `/admin.html`, log in as that user, then delete the default `admin` account. See [BETA_TESTER_GUIDE.md](./BETA_TESTER_GUIDE.md).
 
 For SDK/API access, use the default beta API key (local only): `avn_beta_dev_key_change_me`
 
@@ -251,6 +275,7 @@ curl -s -X POST -H "Authorization: Bearer $AVENTER_API_KEY" \
 PORT=3001
 NODE_ENV=production
 AVENTER_BETA_API_KEY=avn_beta_<secret>
+JWT_SECRET=<openssl rand -base64 32>
 DATABASE_URL=postgresql://aventer:<password>@localhost:5432/aventer
 ```
 

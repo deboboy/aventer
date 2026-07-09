@@ -159,14 +159,54 @@ Same as Option B. Fly.io pricing can spike with egress and always-on machines �
 
 ## 5. DNS (aventer.dev)
 
-Configure at your registrar (or Cloudflare in front of everything):
+Configure at Namecheap (**Advanced DNS**) or Cloudflare in front of everything.
 
-| Record | Type | Target | Notes |
+### Vercel dashboard + marketing (same project)
+
+Use the **exact values shown in Vercel → Project → Settings → Domains** for your project. As of Jul 2026:
+
+| Record | Type | Host | Value | Notes |
+|---|---|---|---|---|
+| Apex | **A** | `@` | `216.198.79.1` | Vercel IP (new range; replaces `76.76.21.21`) |
+| WWW | **CNAME** | `www` | `39df794dc45813fb.vercel-dns-017.com` | Project-specific; copy from Vercel console |
+
+**Do not** leave Namecheap’s default parking record — it blocks apex verification:
+
+| Remove this | Type | Host | Value |
 |---|---|---|---|
-| `@` | A / ALIAS | Vercel | Marketing |
-| `www` | CNAME | `cname.vercel-dns.com` | Redirect to apex |
-| `beta` | CNAME | `cname.vercel-dns.com` | Dashboard project |
-| `api` | A | Hetzner VPS public IPv4 | Point `api.aventer.dev` → VPS IP |
+| ❌ Parking / old host | A | `@` | `162.255.119.161` |
+
+**Namecheap gotcha:** A **URL Redirect Record** on `@` (e.g. `@ → http://www.aventer.dev/`) creates a **hidden** A record pointing to `162.255.119.161` that **does not appear** in the Advanced DNS table. You will see both IPs in `dig` even though only one A record is visible. **Delete the URL Redirect** — configure apex ↔ www redirects in **Vercel → Domains** instead.
+
+Vercel will show **Invalid Configuration** until the conflicting `@` A record is deleted. Public DNS may return **both** IPs until propagation completes:
+
+```bash
+dig aventer.dev A +short
+# Bad (conflict):  162.255.119.161 AND 216.198.79.1
+# Good (fixed):    216.198.79.1
+```
+
+### Namecheap checklist
+
+1. **Advanced DNS** → delete the **URL Redirect Record** on `@` (this removes the hidden `162.255.119.161` A record)
+2. Keep **one** `@` A record → `216.198.79.1` (Vercel)
+3. Keep **www** CNAME → your project’s `*.vercel-dns-017.com` value
+4. Set apex ↔ www redirect in **Vercel → Project → Settings → Domains** (not Namecheap)
+5. Turn **DNSSEC** off (Namecheap → Domain → DNSSEC) if enabled — can block Vercel SSL
+6. Remove **CAA** records if present (or allow Let’s Encrypt)
+7. Save → wait 5–60 min → click **Refresh** in Vercel Domains
+
+### API (Hetzner VPS)
+
+| Record | Type | Host | Value |
+|---|---|---|---|
+| API | A | `api` | Hetzner VPS public IPv4 (e.g. `91.98.115.123`) |
+
+### Optional subdomain
+
+| Record | Type | Host | Value |
+|---|---|---|---|
+| Beta alias | CNAME | `beta` | Same Vercel CNAME as `www` (if you use `beta.aventer.dev`) |
 
 **SSL:** Caddy on the VPS handles `api.aventer.dev` via Let's Encrypt (automatic on first request). Vercel handles dashboard/marketing certs.
 

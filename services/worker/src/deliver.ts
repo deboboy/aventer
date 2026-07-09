@@ -78,12 +78,17 @@ async function claimDueDeliveries(): Promise<DueDelivery[]> {
   }
 }
 
-async function markDelivered(deliveryId: string): Promise<void> {
+async function markDelivered(
+  deliveryId: string,
+  attemptCount: number,
+  statusCode: number
+): Promise<void> {
   await getPool().query(
     `UPDATE deliveries
-     SET status = 'delivered', delivered_at = now(), last_error = NULL
+     SET status = 'delivered', delivered_at = now(), last_error = NULL,
+         attempt_count = $2, last_status_code = $3
      WHERE id = $1`,
-    [deliveryId]
+    [deliveryId, attemptCount, statusCode]
   );
 }
 
@@ -130,7 +135,7 @@ async function deliverOne(row: DueDelivery): Promise<void> {
     });
 
     if (response.ok) {
-      await markDelivered(row.delivery_id);
+      await markDelivered(row.delivery_id, row.attempt_count + 1, response.status);
       console.log(`Delivered ${row.event_id} → ${row.subscriber_url} (${response.status})`);
       return;
     }

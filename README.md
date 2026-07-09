@@ -37,7 +37,15 @@ cd examples
 npx tsx emit.ts
 ```
 
-Default beta API key (local only): `avn_beta_dev_key_change_me`
+**Beta authentication is now enabled!**
+
+Default login credentials:
+- Username: `admin`
+- Password: `changeme123`
+
+⚠️ **Change the default password in production!** See [BETA_AUTHENTICATION.md](./BETA_AUTHENTICATION.md)
+
+For SDK/API access, use the default beta API key (local only): `avn_beta_dev_key_change_me`
 
 Set `AVENTER_API_KEY` or use:
 
@@ -124,6 +132,7 @@ Required in production so the dashboard SSE client talks to your API host (local
 - [x] Postgres event persistence
 - [x] Delivery worker + HMAC signing + DLQ
 - [x] Subscriber registry API
+- [x] **Beta authentication + admin dashboard**
 - [ ] SDK `createHandler()` for subscribers
 - [ ] `aventer listen` tunnel to cloud
 

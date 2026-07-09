@@ -223,6 +223,7 @@ Add CORS middleware on API for `https://beta.aventer.dev` (browser SSE + fetch f
 
 - Remove hardcoded `avn_beta_dev_key_change_me` default in production
 - Store secrets in `/etc/aventer/env` or systemd `EnvironmentFile` on VPS; Vercel dashboard for frontend env vars
+- **Add JWT_SECRET for authentication**: `openssl rand -base64 32`
 - Never commit `.env` files
 
 ### 6.6 SDK default URL
@@ -312,6 +313,7 @@ DATABASE_URL=postgresql://aventer:<password>@localhost:5432/aventer
 PORT=3001
 NODE_ENV=production
 AVENTER_BETA_API_KEY=<generate-strong-key>
+JWT_SECRET=$(openssl rand -base64 32)
 EOF
 sudo chmod 600 /etc/aventer/env
 sudo chown aventer:aventer /etc/aventer/env
@@ -385,7 +387,10 @@ sudo systemctl restart aventer-api aventer-worker
 4. Output directory: `dist`
 5. Env: `VITE_API_URL=https://api.aventer.dev`
 6. Custom domain: `beta.aventer.dev`
-7. Test: connect with beta API key, run `examples/emit.ts` pointed at production API
+7. Test login with default credentials: `admin` / `changeme123`
+8. **⚠️ IMPORTANT: Change default admin password immediately!**
+   - Login → Admin dashboard → Create new admin user → Delete default admin
+9. Add your beta testers via admin dashboard
 
 ### Phase 5 — Marketing to Vercel (day 3–4)
 
@@ -451,6 +456,7 @@ jobs:
 | `PORT` | API | Yes | `3001` on Hetzner |
 | `NODE_ENV` | All | Yes | `production` |
 | `AVENTER_BETA_API_KEY` | API | Beta only | Single shared key until auth UI exists |
+| `JWT_SECRET` | API | Yes | Secret for signing JWT tokens (generate with `openssl rand -base64 32`) |
 | `VITE_API_URL` | Dashboard | Yes | `https://api.aventer.dev` |
 | `UPSTASH_REDIS_URL` | API | Later | Only if you split API across multiple VPS instances |
 
@@ -490,13 +496,16 @@ Railway/Fly equivalent: ~$15–40/mo. AWS App Runner + RDS: ~$40–80/mo minimum
 
 - [ ] HTTPS everywhere; reject HTTP on API
 - [ ] API keys hashed at rest (bcrypt or similar)
+- [ ] **JWT_SECRET set to strong random value in production**
+- [ ] **Default admin password changed immediately after first deployment**
 - [ ] Rate limit `POST /v1/events` per API key (e.g. 100 req/min)
+- [ ] **Rate limit `POST /v1/auth/login` (e.g. 5 attempts/min per IP)**
 - [ ] CORS restricted to `beta.aventer.dev`
 - [ ] Subscriber URL validation (HTTPS only, block private IPs — SSRF prevention from strategy doc)
 - [ ] UFW: only 22, 80, 443 open; Postgres bound to `127.0.0.1` only
 - [ ] Unattended security upgrades enabled (`apt install unattended-upgrades`)
-
 - [ ] Rotate beta API key if leaked; document rotation in README
+- [ ] **Beta user credentials shared securely (encrypted channels only)**
 
 ---
 
@@ -527,11 +536,13 @@ Railway/Fly equivalent: ~$15–40/mo. AWS App Runner + RDS: ~$40–80/mo minimum
 
 ## 15. Immediate Next Steps
 
-1. Add Postgres migration and replace `store.ts` in-memory implementation
-2. Add CORS + `VITE_API_URL` to dashboard
-3. Provision Hetzner CX22; bootstrap with Caddy + Postgres + systemd units
-4. Point `api.aventer.dev` → VPS; deploy API → verify health → deploy dashboard on Vercel
-5. Publish `@aventer/sdk` to npm with production API URL default
+1. Add Postgres migration and replace `store.ts` in-memory implementation ✅ **DONE**
+2. Add CORS + `VITE_API_URL` to dashboard ✅ **DONE**
+3. **✅ DONE: Add beta authentication + admin dashboard** (see [BETA_AUTHENTICATION.md](./BETA_AUTHENTICATION.md))
+4. Provision Hetzner CX22; bootstrap with Caddy + Postgres + systemd units
+5. Point `api.aventer.dev` → VPS; deploy API → verify health → deploy dashboard on Vercel
+6. **Change default admin password and add real beta testers**
+7. Publish `@aventer/sdk` to npm with production API URL default
 
 ---
 

@@ -18,6 +18,16 @@ import {
   storeEvent,
   subscribe,
 } from "./store.js";
+import {
+  validateCredentials,
+  generateToken,
+  verifyToken,
+  createBetaUser,
+  listBetaUsers,
+  deleteBetaUser,
+  updatePassword,
+  type JWTPayload,
+} from "./auth.js";
 
 const app = new Hono();
 
@@ -29,6 +39,36 @@ function resolveProjectFromAuth(c: {
   const auth = c.req.header("Authorization");
   if (!auth?.startsWith("Bearer ")) return null;
   return resolveProjectFromApiKey(auth.slice("Bearer ".length));
+}
+
+function extractBearerToken(c: {
+  req: { header: (name: string) => string | undefined };
+}): string | null {
+  const auth = c.req.header("Authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
+  return auth.slice("Bearer ".length);
+}
+
+function verifyAuthToken(c: {
+  req: { header: (name: string) => string | undefined };
+}): JWTPayload | null {
+  const token = extractBearerToken(c);
+  if (!token) return null;
+  return verifyToken(token);
+}
+
+function requireAdmin(c: {
+  req: { header: (name: string) => string | undefined };
+  json: (data: unknown, status?: number) => Response;
+}): JWTPayload | Response {
+  const user = verifyAuthToken(c);
+  if (!user) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+  if (!user.is_admin) {
+    return c.json({ error: "admin_required" }, 403);
+  }
+  return user;
 }
 
 app.get("/health", async (c) => {
@@ -45,6 +85,145 @@ app.get("/health", async (c) => {
   }
 
   return c.json({ status: "ok", service: "aventer-api", db: dbStatus });
+});
+
+app.post("/v1/auth/login", async (c) => {
+  if (!isDatabaseEnabled()) {
+    return c.json({ error: "database_required" }, 503);
+  }
+
+  let body: { username?: string; password?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+
+  if (!body.username || !body.password) {
+    return c.json({ error: "username_and_password_required" }, 400);
+  }
+
+  const user = await validateCredentials(body.username, body.password);
+  if (!user) {
+    return c.json({ error: "invalid_credentials" }, 401);
+  }
+
+  const token = generateToken(user);
+  return c.json({
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      is_admin: user.is_admin,
+    },
+  });
+});
+
+app.get("/v1/auth/me", async (c) => {
+  if (!isDatabaseEnabled()) {
+    return c.json({ error: "database_required" }, 503);
+  }
+
+  const user = verifyAuthToken(c);
+  if (!user) {
+    return c.json({ error: "unauthorized" }, 401);
+  }
+
+  return c.json({
+    user: {
+      id: user.user_id,
+      username: user.username,
+      is_admin: user.is_admin,
+    },
+  });
+});
+
+app.post("/v1/admin/users", async (c) => {
+  if (!isDatabaseEnabled()) {
+    return c.json({ error: "database_required" }, 503);
+  }
+
+  const adminCheck = requireAdmin(c);
+  if (adminCheck instanceof Response) return adminCheck;
+
+  let body: { username?: string; password?: string; is_admin?: boolean };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+
+  if (!body.username || !body.password) {
+    return c.json({ error: "username_and_password_required" }, 400);
+  }
+
+  try {
+    const user = await createBetaUser(body.username, body.password, body.is_admin ?? false);
+    return c.json(
+      {
+        id: user.id,
+        username: user.username,
+        is_admin: user.is_admin,
+        created_at: user.created_at,
+      },
+      201
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown_error";
+    if (message.includes("duplicate") || message.includes("unique")) {
+      return c.json({ error: "username_already_exists" }, 409);
+    }
+    return c.json({ error: message }, 500);
+  }
+});
+
+app.get("/v1/admin/users", async (c) => {
+  if (!isDatabaseEnabled()) {
+    return c.json({ error: "database_required" }, 503);
+  }
+
+  const adminCheck = requireAdmin(c);
+  if (adminCheck instanceof Response) return adminCheck;
+
+  const users = await listBetaUsers();
+  return c.json({ users });
+});
+
+app.delete("/v1/admin/users/:id", async (c) => {
+  if (!isDatabaseEnabled()) {
+    return c.json({ error: "database_required" }, 503);
+  }
+
+  const adminCheck = requireAdmin(c);
+  if (adminCheck instanceof Response) return adminCheck;
+
+  const deleted = await deleteBetaUser(c.req.param("id"));
+  if (!deleted) return c.json({ error: "not_found" }, 404);
+  return c.body(null, 204);
+});
+
+app.put("/v1/admin/users/:id/password", async (c) => {
+  if (!isDatabaseEnabled()) {
+    return c.json({ error: "database_required" }, 503);
+  }
+
+  const adminCheck = requireAdmin(c);
+  if (adminCheck instanceof Response) return adminCheck;
+
+  let body: { password?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+
+  if (!body.password) {
+    return c.json({ error: "password_required" }, 400);
+  }
+
+  const updated = await updatePassword(c.req.param("id"), body.password);
+  if (!updated) return c.json({ error: "not_found" }, 404);
+  return c.json({ updated: true });
 });
 
 app.post("/v1/events", async (c) => {
@@ -199,13 +378,24 @@ function resolveApiKeyFromRequest(c: {
 
 app.get("/v1/events/stream", (c) => {
   const apiKey = resolveApiKeyFromRequest(c);
-  if (!apiKey) {
-    return c.json({ error: "missing_api_key" }, 401);
+  let projectId: string | null = null;
+
+  // Try API key first (for SDK/programmatic access)
+  if (apiKey) {
+    projectId = resolveProjectFromApiKey(apiKey);
   }
 
-  const projectId = resolveProjectFromApiKey(apiKey);
+  // If no valid API key, try JWT token (for dashboard user access)
   if (!projectId) {
-    return c.json({ error: "invalid_api_key" }, 401);
+    const user = verifyAuthToken(c);
+    if (user) {
+      // All authenticated beta users get access to the default beta project
+      projectId = "proj_beta_default";
+    }
+  }
+
+  if (!projectId) {
+    return c.json({ error: "missing_api_key_or_token" }, 401);
   }
 
   return streamSSE(c, async (stream) => {

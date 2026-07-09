@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aventer Admin — Beta User Management</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/admin.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Aventer Admin</h1>
+        <p class="subtitle">Beta user management</p>
+      </header>
+
+      <div class="admin-actions">
+        <a href="/" class="back-link">← Back to Dashboard</a>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+
+      <section class="add-user-section">
+        <h2>Add Beta User</h2>
+        <div class="add-user-form">
+          <label>
+            Username
+            <input id="newUsername" type="text" placeholder="username" />
+          </label>
+          <label>
+            Password
+            <input id="newPassword" type="password" placeholder="password" />
+          </label>
+          <label class="checkbox-label">
+            <input id="newIsAdmin" type="checkbox" />
+            <span>Admin privileges</span>
+          </label>
+          <button id="addUserBtn">Add User</button>
+          <span id="addUserError" class="error-message"></span>
+          <span id="addUserSuccess" class="success-message"></span>
+        </div>
+      </section>
+
+      <section class="users-section">
+        <h2>Beta Users</h2>
+        <div id="usersList" class="users-list">
+          <div class="loading">Loading users...</div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/admin.ts"></script>
+  </body>
+</html>

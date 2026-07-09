@@ -127,7 +127,9 @@ Required in production so the dashboard SSE client talks to your API host (local
 - [ ] SDK `createHandler()` for subscribers
 - [ ] `aventer listen` tunnel to cloud
 
-See `LastMyle/Content/Agents Events Webhooks/AEW_BETA_PROTOTYPE_PLAN.md` for the full beta plan.
+See `~/LastMyle/Content/Agents Events Webhooks/AEW_BETA_PROTOTYPE_PLAN.md` for the full beta plan.
+
+**Local clone:** `~/LastMyle/Code/aventer`
 
 ## Postgres
 

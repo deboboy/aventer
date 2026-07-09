@@ -3,7 +3,7 @@
 **Date:** July 7, 2026  
 **Status:** Recommended approach for beta  
 **Domain:** [aventer.dev](https://aventer.dev)  
-**Related:** [README](./README.md) · [AEW Beta Prototype Plan](../LastMyle/Content/Agents%20Events%20Webhooks/AEW_BETA_PROTOTYPE_PLAN.md)
+**Related:** [README](./README.md) · [AEW Beta Prototype Plan](../../Content/Agents%20Events%20Webhooks/AEW_BETA_PROTOTYPE_PLAN.md)
 
 ---
 

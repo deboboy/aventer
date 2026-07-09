@@ -102,6 +102,7 @@ Aventer today is a thin **event + delivery layer**: `agent-v1` events → Postgr
 2. **OTel → Aventer bridge** — SDK middleware or Collector exporter (see §6)
 3. **Run summary API** — `GET /v1/runs/:run_id` aggregated from events (see §7)
 4. **Guardrail event types** — budget / loop / cancel with subscriber docs (see §5.3)
+5. **Eval pipeline + trends (Phase 2g)** — `eval.*` events, SDK `verify()`, correctness trends API (see §8)
 
 ---
 
@@ -199,6 +200,29 @@ Current schema (`packages/schema/agent-v1.schema.json`):
 
 `task.verified` / `task.rejected` separate **operational success** (`task.completed`) from **correctness success** — addressing the "200 OK but wrong" problem.
 
+#### New in v2 — eval pipeline (Phase 2g)
+
+Eval events record **how** correctness was judged and feed trend APIs. They are the product surface for the killer metric — not just fields waiting to be populated.
+
+| Type | When | Typical subscriber action |
+|---|---|---|
+| `eval.started` | Evaluator begins judging a run/task | Audit log, latency tracking |
+| `eval.completed` | Evaluator finished; emits verdict + evidence | Drives `task.verified` / `task.rejected`; trends rollup |
+
+**Flow:**
+
+```
+task.completed (correctness: unknown)
+       │
+       ▼
+eval.started  ──►  golden-set / LLM-judge / human / rule engine
+       │
+       ▼
+eval.completed  ──►  task.verified | task.rejected  ──►  webhook / trends API
+```
+
+`eval.completed` is the **source of truth** for correctness tracing at the Aventer layer. OTel retains forensic span detail; eval events retain **judgment + evidence** in a queryable, webhook-friendly form.
+
 ### 5.4 Standard `data` conventions
 
 All fields optional unless noted. Subscribers should tolerate missing fields.
@@ -275,6 +299,55 @@ All fields optional unless noted. Subscribers should tolerate missing fields.
 }
 ```
 
+#### Eval events (`eval.*`) — Phase 2g
+
+```json
+{
+  "eval_id": "eval_abc123",
+  "task_id": "task_abc",
+  "run_id": "run_xyz",
+  "evaluator": "golden-set-v2",
+  "evaluator_type": "golden_set",
+  "verdict": "pass",
+  "score": 0.95,
+  "threshold": 0.80,
+  "duration_ms": 840,
+  "input_hash": "sha256:a1b2c3…",
+  "output_hash": "sha256:d4e5f6…",
+  "evidence": {
+    "matched_cases": 19,
+    "total_cases": 20,
+    "failed_cases": ["case_07"],
+    "notes": "Missing citation on paragraph 3"
+  },
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `eval_id` | string | Unique eval run id |
+| `task_id` | string | Task being judged (links to `task.completed`) |
+| `run_id` | string | Redundant but useful for queries without join |
+| `evaluator` | string | Evaluator name/version (`golden-set-v2`, `llm-judge-gpt4`) |
+| `evaluator_type` | enum | `golden_set` \| `llm_judge` \| `human` \| `rule` \| `custom` |
+| `verdict` | enum | `pass` \| `fail` \| `inconclusive` |
+| `score` | number | 0.0–1.0 normalized score |
+| `threshold` | number | Pass threshold used (if applicable) |
+| `duration_ms` | number | Eval wall-clock time |
+| `input_hash` | string | Hash of inputs judged (privacy-safe dedup) |
+| `output_hash` | string | Hash of agent output judged |
+| `evidence` | object | Evaluator-specific detail (failed cases, diff summary, reviewer id) |
+| `trace_id` | string | Link to OTel trace for deep debugging |
+
+**Verdict → event mapping (SDK `verify()` helper):**
+
+| `verdict` | Follow-up event emitted |
+|---|---|
+| `pass` | `task.verified` |
+| `fail` | `task.rejected` |
+| `inconclusive` | none (leave `task.completed` as `correctness: unknown`) |
+
 ### 5.5 JSON Schema sketch
 
 Full schema TBD in `packages/schema/agent-v2.schema.json`. Core constraints:
@@ -286,6 +359,7 @@ Full schema TBD in `packages/schema/agent-v2.schema.json`. Core constraints:
     "enum": [
       "task.started", "task.completed", "task.failed",
       "task.verified", "task.rejected",
+      "eval.started", "eval.completed",
       "tool.called", "tool.failed",
       "agent.started", "agent.stopped",
       "llm.error",
@@ -304,13 +378,13 @@ API ingest accepts both `agent-v1` and `agent-v2` during transition. Dashboard a
 {
   "url": "https://www.lastmyle.co/api/webhooks/aventer",
   "secret": "whsec_...",
-  "event_types": ["task.failed", "task.rejected", "budget.exceeded", "loop.detected"]
+  "event_types": ["task.rejected", "eval.completed", "budget.exceeded", "loop.detected"]
 }
 ```
 
-Alert on correctness failures and runaway spend; ignore routine `task.completed` with `correctness: unknown`.
+Alert when eval fails or correctness is rejected; subscribe to `eval.completed` for eval-pipeline observability.
 
-Future: filter expressions on `data.correctness`, `data.cost_usd` (post-beta).
+Future: filter expressions on `data.verdict`, `data.correctness`, `data.cost_usd` (post-beta).
 
 ---
 
@@ -396,16 +470,233 @@ Returns all events for a run, plus computed summary:
 | Condition | Status |
 |---|---|
 | Has `task.failed` or `task.rejected` | `failed` |
+| Has `eval.completed` with `verdict: fail` | `failed` |
 | Has `budget.exceeded` or `run.cancelled` | `cancelled` |
-| Has `task.completed` or `task.verified` | `completed` |
+| Has `task.completed`, `task.verified`, or `eval.completed` with `verdict: pass` | `completed` |
 | Has `task.started` only | `running` |
 | Otherwise | `unknown` |
 
-Enables "are they improving over time?" via periodic queries on `correctness` and `cost_usd` per run — not 200-span trees.
+Enables per-run correctness; **§8** adds agent-level trends across runs.
 
 ---
 
-## 8. Implementation roadmap
+## 8. Eval pipeline & correctness trends (Phase 2g)
+
+Correctness is the killer metric. Phase 2g makes it a **first-class product surface** — not just schema fields on `task.completed`.
+
+### 8.1 Problem statement
+
+| Layer | Question | Owner today |
+|---|---|---|
+| OTel spans | *How* did the agent decide? | Honeycomb / Datadog / Workers |
+| `task.completed` | Did it finish without error? | Aventer v1 |
+| **Eval + trends** | Was it **correct**, and **is it improving**? | **Aventer v2g** |
+
+Raw span trees don't answer "are we improving over time." Aggregated **eval events + rolling correctness rates** do.
+
+### 8.2 Eval pipeline architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
+│  Agent runtime  │────►│  task.completed  │────►│  Evaluator (yours)  │
+│  emit()         │     │  correctness:    │     │  golden-set / judge │
+└─────────────────┘     │  unknown         │     └──────────┬──────────┘
+                        └──────────────────┘                │
+                                                              ▼
+                        ┌──────────────────────────────────────────────┐
+                        │  Aventer SDK verify() or manual emit           │
+                        │  eval.started → eval.completed → task.verified │
+                        └──────────────────────────────────────────────┘
+                                          │
+                    ┌─────────────────────┼─────────────────────┐
+                    ▼                     ▼                     ▼
+             GET …/correctness      Webhooks (reject)     Dashboard badge
+             (trends API)           Slack / PagerDuty      "94% this week"
+```
+
+**Aventer does not run evaluators in v2g** — it standardizes how verdicts are **recorded, delivered, and aggregated**. Partners bring golden sets, LLM-as-judge, human review, or rule engines.
+
+### 8.3 SDK `verify()` helper (design)
+
+High-level API wrapping `eval.started` → `eval.completed` → `task.verified` | `task.rejected`:
+
+```typescript
+import { verify } from "@aventer/sdk";
+
+const result = await verify({
+  task_id: "task_abc",
+  run_id: "run_xyz",
+  evaluator: "golden-set-v2",
+  evaluator_type: "golden_set",
+  score: 0.95,
+  threshold: 0.80,
+  verdict: "pass", // or "fail" | "inconclusive"
+  evidence: {
+    matched_cases: 19,
+    total_cases: 20,
+    failed_cases: ["case_07"],
+  },
+  input_hash: "sha256:…",
+  output_hash: "sha256:…",
+});
+
+// result.events: [eval.started, eval.completed, task.verified]
+// result.correctness: "verified"
+```
+
+**`verify()` behavior:**
+
+1. Emit `eval.started` with `task_id`, `evaluator`
+2. Emit `eval.completed` with full eval payload
+3. If `verdict === "pass"` → emit `task.verified` with `correctness_score`, `correctness_source`
+4. If `verdict === "fail"` → emit `task.rejected`
+5. If `verdict === "inconclusive"` → stop after `eval.completed` (no task.* verdict event)
+
+Optional: pass `trace_id` in `context` for OTel deep-link.
+
+### 8.4 Correctness trends API (design)
+
+#### `GET /v1/agents/:agent_id/correctness`
+
+Rolling correctness metrics for "are they improving over time?"
+
+**Query params:**
+
+| Param | Default | Description |
+|---|---|---|
+| `window` | `7d` | `24h`, `7d`, `30d`, `90d` |
+| `evaluator` | all | Filter by evaluator name |
+| `org_id` | from auth | Project scope |
+
+**Response:**
+
+```json
+{
+  "agent_id": "my-agent",
+  "window": "7d",
+  "period_start": "2026-07-02T00:00:00.000Z",
+  "period_end": "2026-07-09T23:59:59.999Z",
+  "summary": {
+    "total_runs": 142,
+    "evaluated_runs": 128,
+    "passed": 121,
+    "failed": 7,
+    "inconclusive": 14,
+    "correctness_rate": 0.945,
+    "avg_score": 0.91,
+    "trend": "improving"
+  },
+  "by_day": [
+    {
+      "date": "2026-07-08",
+      "evaluated": 22,
+      "passed": 20,
+      "failed": 2,
+      "correctness_rate": 0.909
+    },
+    {
+      "date": "2026-07-09",
+      "evaluated": 24,
+      "passed": 23,
+      "failed": 1,
+      "correctness_rate": 0.958
+    }
+  ],
+  "by_evaluator": [
+    {
+      "evaluator": "golden-set-v2",
+      "evaluated": 100,
+      "correctness_rate": 0.95
+    },
+    {
+      "evaluator": "llm-judge-gpt4",
+      "evaluated": 28,
+      "correctness_rate": 0.929
+    }
+  ],
+  "recent_failures": [
+    {
+      "run_id": "run_abc",
+      "task_id": "task_xyz",
+      "eval_id": "eval_123",
+      "score": 0.42,
+      "evaluator": "golden-set-v2",
+      "failed_at": "2026-07-09T18:22:00.000Z",
+      "evidence_summary": "Missing citation on paragraph 3"
+    }
+  ]
+}
+```
+
+**`trend` derivation (simple v1):**
+
+| Condition | Trend |
+|---|---|
+| Last 3 days rate > prior 3 days rate by ≥ 2pp | `improving` |
+| Last 3 days rate < prior 3 days rate by ≥ 2pp | `declining` |
+| Otherwise | `stable` |
+
+#### `GET /v1/agents/:agent_id/correctness/compare`
+
+Compare two windows (e.g. this week vs last week) for regression detection:
+
+```json
+{
+  "agent_id": "my-agent",
+  "current": { "window": "7d", "correctness_rate": 0.945 },
+  "previous": { "window": "7d", "correctness_rate": 0.891, "offset": "-7d" },
+  "delta": 0.054,
+  "regression": false
+}
+```
+
+### 8.5 Storage & aggregation (implementation notes)
+
+Trends API reads from `events` table — no separate eval store in v2g:
+
+| Source events | Used for |
+|---|---|
+| `eval.completed` | Score, verdict, evaluator, evidence |
+| `task.verified` / `task.rejected` | Pass/fail counts |
+| `task.completed` | Denominator (unevaluated runs) |
+
+**Postgres approach (beta):** materialized daily rollup table `correctness_daily` populated by API on ingest or nightly job:
+
+```sql
+-- correctness_daily (sketch)
+-- agent_id, org_id, date, evaluator, evaluated, passed, failed, avg_score
+```
+
+Full recompute from events acceptable for <10k runs/day; rollup table required beyond that.
+
+### 8.6 Dashboard surfaces (2g)
+
+| Surface | Shows |
+|---|---|
+| Run detail | Eval evidence, verdict, link to OTel trace |
+| Agent header | `94.5% correct (7d)` badge with trend arrow |
+| Admin / ops view | Recent failures list, regression alert |
+
+### 8.7 Webhook patterns for eval
+
+```json
+{
+  "event_types": ["eval.completed", "task.rejected"],
+  "url": "https://hooks.slack.com/…"
+}
+```
+
+Slack message on `task.rejected`:
+
+```
+Agent my-agent failed eval (golden-set-v2): 0.42
+Run run_xyz · Missing citation on paragraph 3
+Trace: https://otel.example.com/trace/4bf92f…
+```
+
+---
+
+## 9. Implementation roadmap
 
 | Phase | Scope | Depends on |
 |---|---|---|
@@ -415,23 +706,36 @@ Enables "are they improving over time?" via periodic queries on `correctness` an
 | **2d** | OTel bridge (TypeScript middleware) | 2b |
 | **2e** | Dashboard: run summary + correctness badges | 2c |
 | **2f** | Subscriber filters on `data.correctness` | API + docs |
+| **2g** | **Eval pipeline & correctness trends** — `eval.*` events, SDK `verify()`, `GET /v1/agents/:id/correctness`, dashboard trend badge, `correctness_daily` rollup | 2b, 2c |
+
+**Phase 2g deliverables:**
+
+- [ ] `eval.started`, `eval.completed` event types in schema + ingest
+- [ ] SDK `verify()` helper (wraps eval + verdict events)
+- [ ] `GET /v1/agents/:agent_id/correctness` (+ optional `/compare`)
+- [ ] `correctness_daily` rollup (migration `004_correctness_rollup.sql`)
+- [ ] Dashboard: correctness rate + trend on agent view
+- [ ] Docs: evaluator integration guide (golden-set, LLM-judge examples)
 
 Guardrail events (`budget.*`, `loop.*`) can ship in **2b** with manual `emit()` before automated detection lands.
 
 ---
 
-## 9. Success metrics (beta)
+## 10. Success metrics (beta)
 
 | Metric | Target |
 |---|---|
 | % runs with `correctness` set (not `unknown`) | > 50% among design partners |
+| Partners using `verify()` or `eval.completed` | ≥ 2 |
+| Correctness trend API queried weekly | ≥ 1 partner |
+| Correctness regression caught via webhook before user report | ≥ 1 documented case |
 | Guardrail events → webhook → action (kill switch) | ≥ 1 partner wired |
 | OTel bridge adoption | ≥ 1 partner using middleware |
 | Mean time to wire first subscriber | < 30 minutes (unchanged from v1) |
 
 ---
 
-## 10. References
+## 11. References
 
 - OpenTelemetry GenAI semantic conventions — `gen_ai.*` spans
 - Cloudflare agents SDK PR #1860 (July 2026) — native OTel AI tracing
@@ -473,4 +777,43 @@ await emit("loop.detected", {
 // Subscriber POSTs to your kill-switch API
 // POST https://your-app.com/api/agents/kill-switch
 // → disables agent, stops billing
+```
+
+## Appendix C: Eval / correctness example (Phase 2g)
+
+```typescript
+import { emit, verify } from "@aventer/sdk";
+
+// 1. Agent completes work (correctness unknown)
+await emit("task.completed", {
+  task_id: "task_abc",
+  summary: "Generated Q3 report",
+  tokens: { total: 4200 },
+  cost_usd: 0.042,
+  correctness: "unknown",
+});
+
+// 2. Your evaluator runs (golden set, LLM judge, human, etc.)
+const goldenResult = await runGoldenSet("task_abc", agentOutput);
+
+// 3. Record verdict via verify() — emits eval.* + task.verified|rejected
+await verify({
+  task_id: "task_abc",
+  evaluator: "golden-set-v2",
+  evaluator_type: "golden_set",
+  score: goldenResult.score,
+  threshold: 0.80,
+  verdict: goldenResult.score >= 0.80 ? "pass" : "fail",
+  evidence: {
+    matched_cases: goldenResult.passed,
+    total_cases: goldenResult.total,
+    failed_cases: goldenResult.failures,
+  },
+  input_hash: goldenResult.inputHash,
+  output_hash: goldenResult.outputHash,
+});
+
+// 4. Query trends — "are we improving?"
+// GET /v1/agents/my-agent/correctness?window=7d
+// → { correctness_rate: 0.945, trend: "improving", recent_failures: [...] }
 ```

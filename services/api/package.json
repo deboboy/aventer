@@ -14,10 +14,14 @@
     "@aventer/delivery": "0.0.1",
     "@aventer/schema": "0.0.1",
     "@hono/node-server": "^1.14.1",
+    "bcryptjs": "^3.0.3",
     "hono": "^4.7.10",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.16.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.15.3",
     "@types/pg": "^8.15.2",
     "tsx": "^4.19.4",

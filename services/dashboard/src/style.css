@@ -93,3 +93,65 @@ pre {
   overflow-x: auto;
   font-size: 0.78rem;
 }
+
+.login-screen {
+  margin-top: 3rem;
+}
+
+.login-form {
+  max-width: 380px;
+  margin: 0 auto;
+  padding: 2rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #161b22;
+}
+
+.login-form h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+}
+
+.login-form label {
+  margin-bottom: 0.75rem;
+}
+
+.login-form button {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.error-message {
+  display: block;
+  margin-top: 0.75rem;
+  color: #f85149;
+  font-size: 0.85rem;
+  min-height: 1.2rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #30363d;
+}
+
+.user-display {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #8b949e;
+}
+
+.logout-btn {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #8b949e;
+}
+
+.logout-btn:hover {
+  background: #30363d;
+}

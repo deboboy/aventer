@@ -1,0 +1,142 @@
+.admin-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #30363d;
+}
+
+.back-link {
+  color: #79c0ff;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.add-user-section {
+  margin-bottom: 2rem;
+}
+
+.add-user-section h2,
+.users-section h2 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.add-user-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 0.75rem;
+  align-items: end;
+  padding: 1.25rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #161b22;
+}
+
+.add-user-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.checkbox-label {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem !important;
+}
+
+.checkbox-label input[type="checkbox"] {
+  min-width: auto;
+  width: auto;
+  margin: 0;
+}
+
+.add-user-form button {
+  padding: 0.55rem 1.25rem;
+}
+
+.add-user-form .error-message,
+.add-user-form .success-message {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.success-message {
+  display: block;
+  color: #3fb950;
+  font-size: 0.85rem;
+  min-height: 1.2rem;
+}
+
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.user-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #161b22;
+}
+
+.user-info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.user-username {
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.user-meta {
+  font-size: 0.8rem;
+  color: #8b949e;
+}
+
+.admin-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: #1f6feb;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.user-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.delete-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  background: #21262d;
+  border: 1px solid #f85149;
+  color: #f85149;
+}
+
+.delete-btn:hover {
+  background: #f85149;
+  color: white;
+}
+
+.loading {
+  text-align: center;
+  color: #8b949e;
+  padding: 2rem;
+}

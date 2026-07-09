@@ -12,15 +12,37 @@
         <h1>Aventer</h1>
         <p class="subtitle">Live agent events — beta.aventer.dev</p>
       </header>
-      <section class="controls">
-        <label>
-          API key
-          <input id="apiKey" type="password" placeholder="avn_beta_..." />
-        </label>
-        <button id="connect">Connect</button>
-        <span id="status" class="status">disconnected</span>
+
+      <!-- Login screen -->
+      <section id="loginScreen" class="login-screen">
+        <div class="login-form">
+          <h2>Beta Access</h2>
+          <label>
+            Username
+            <input id="username" type="text" placeholder="Enter username" autocomplete="username" />
+          </label>
+          <label>
+            Password
+            <input id="password" type="password" placeholder="Enter password" autocomplete="current-password" />
+          </label>
+          <button id="loginBtn">Login</button>
+          <span id="loginError" class="error-message"></span>
+        </div>
       </section>
-      <section id="events" class="events"></section>
+
+      <!-- Events dashboard (hidden until logged in) -->
+      <section id="dashboardScreen" class="dashboard-screen" style="display: none;">
+        <div class="user-info">
+          <span id="userDisplay" class="user-display"></span>
+          <button id="logoutBtn" class="logout-btn">Logout</button>
+          <a id="adminLink" href="/admin.html" style="display: none; margin-left: 1rem; color: #79c0ff;">Admin</a>
+        </div>
+        <section class="controls">
+          <button id="connect">Connect to Stream</button>
+          <span id="status" class="status">disconnected</span>
+        </section>
+        <section id="events" class="events"></section>
+      </section>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -86,7 +86,7 @@ export type EmitInput = {
 export type EvaluatorType = "golden_set" | "llm_judge" | "human" | "rule" | "custom";
 export type EvalVerdict = "pass" | "fail" | "inconclusive";
 
-export type CorrectnessStatus = "verified" | "unknown" | "failed";
+export type CorrectnessStatus = "verified" | "pending" | "unknown" | "failed";
 
 export type VerifyInput = {
   task_id: string;

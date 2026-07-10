@@ -68,7 +68,7 @@ export async function verify(
   await postEvent(completed, options);
 
   if (parsed.verdict === "inconclusive") {
-    return { events, correctness: "unknown", verdict: parsed.verdict };
+    return { events, correctness: "pending", verdict: parsed.verdict };
   }
 
   const verdictType = parsed.verdict === "pass" ? "task.verified" : "task.rejected";

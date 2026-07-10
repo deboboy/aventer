@@ -50,7 +50,12 @@ function readCostUsd(data: Record<string, unknown>): number {
 
 function readCorrectness(data: Record<string, unknown>): CorrectnessStatus | null {
   const value = data.correctness;
-  if (value === "verified" || value === "unknown" || value === "failed") {
+  if (
+    value === "verified" ||
+    value === "pending" ||
+    value === "unknown" ||
+    value === "failed"
+  ) {
     return value;
   }
   return null;
@@ -110,6 +115,14 @@ function deriveCorrectness(events: StoredEvent[]): CorrectnessStatus {
     )
   ) {
     return "verified";
+  }
+  if (
+    events.some(
+      (e) =>
+        e.type === "eval.completed" && asRecord(e.data).verdict === "inconclusive"
+    )
+  ) {
+    return "pending";
   }
 
   for (const event of [...events].reverse()) {

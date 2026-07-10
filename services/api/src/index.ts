@@ -3,7 +3,7 @@ import { validateSubscriberUrl } from "@aventer/delivery";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { corsMiddleware } from "./cors.js";
-import { agentEventV1Schema } from "@aventer/schema";
+import { agentEventSchema } from "@aventer/schema";
 import {
   createSubscriber,
   deleteSubscriber,
@@ -14,10 +14,12 @@ import {
 import { checkDatabaseConnection, initDatabase, isDatabaseEnabled } from "./init-db.js";
 import {
   listEvents,
+  listEventsByRun,
   resolveProjectFromApiKey,
   storeEvent,
   subscribe,
 } from "./store.js";
+import { summarizeRun } from "./runs.js";
 import {
   validateCredentials,
   generateToken,
@@ -245,13 +247,36 @@ app.post("/v1/events", async (c) => {
     return c.json({ error: "invalid_json" }, 400);
   }
 
-  const parsed = agentEventV1Schema.safeParse(body);
+  const parsed = agentEventSchema.safeParse(body);
   if (!parsed.success) {
     return c.json({ error: "invalid_event", details: parsed.error.flatten() }, 400);
   }
 
   const stored = await storeEvent(parsed.data, projectId);
-  return c.json({ id: stored.id, received_at: stored.received_at }, 202);
+  return c.json(
+    { id: stored.id, received_at: stored.received_at, spec_version: stored.spec_version },
+    202
+  );
+});
+
+app.get("/v1/runs/:run_id", async (c) => {
+  const auth = c.req.header("Authorization");
+  if (!auth?.startsWith("Bearer ")) {
+    return c.json({ error: "missing_api_key" }, 401);
+  }
+
+  const projectId = resolveProjectFromApiKey(auth.slice("Bearer ".length));
+  if (!projectId) {
+    return c.json({ error: "invalid_api_key" }, 401);
+  }
+
+  const events = await listEventsByRun(projectId, c.req.param("run_id"));
+  if (events.length === 0) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
+  const summary = summarizeRun(events);
+  return c.json(summary);
 });
 
 app.get("/v1/events", async (c) => {

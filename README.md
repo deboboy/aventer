@@ -43,7 +43,7 @@ Default login credentials:
 - Username: `admin`
 - Password: `changeme123`
 
-⚠️ **Change the default password in production immediately** (see below). Full docs: [BETA_AUTHENTICATION.md](./BETA_AUTHENTICATION.md)
+⚠️ **Change the default password in production immediately** (see below). Full docs: [BETA_AUTHENTICATION.md](./docs/BETA_AUTHENTICATION.md)
 
 ### Change the default admin password
 
@@ -67,7 +67,7 @@ Expect `{"updated":true}`. Log out of the dashboard and sign in with your new pa
 
 To look up a user id: `curl -s -H "Authorization: Bearer $TOKEN" https://api.aventer.dev/v1/admin/users | jq`
 
-Alternative: create a new admin at `/admin.html`, log in as that user, then delete the default `admin` account. See [BETA_TESTER_GUIDE.md](./BETA_TESTER_GUIDE.md).
+Alternative: create a new admin at `/admin.html`, log in as that user, then delete the default `admin` account. See [BETA_TESTER_GUIDE.md](./docs/BETA_TESTER_GUIDE.md).
 
 For SDK/API access, use the default beta API key (local only): `avn_beta_dev_key_change_me`
 
@@ -94,6 +94,33 @@ await emit("task.started", { task_id: "123" });
 await emit("task.completed", { task_id: "123", tokens: 4200 });
 ```
 
+**agent-v2** (recommended): structured cost/correctness fields, guardrail events, `verify()` for eval pipeline. See [`docs/AGENT_V2_SPEC.md`](./docs/AGENT_V2_SPEC.md).
+
+```typescript
+import { configure, emit, verify } from "@aventer/sdk";
+
+await emit("task.completed", {
+  task_id: "123",
+  tokens: { input: 3000, output: 1200, total: 4200 },
+  cost_usd: 0.042,
+  correctness: "unknown",
+});
+
+await verify({
+  task_id: "123",
+  evaluator: "golden-set-v1",
+  evaluator_type: "golden_set",
+  score: 0.95,
+  verdict: "pass",
+});
+```
+
+```bash
+npm run emit:v2   # example v2 flow with verify()
+```
+
+Fetch run summary: `GET /v1/runs/:run_id`
+
 ## Domains
 
 | Environment | URL |
@@ -106,7 +133,7 @@ Local dev uses `localhost:3001` (API) and `localhost:5173` (dashboard).
 
 ## Deploy dashboard to Vercel
 
-**Only deploy the dashboard on Vercel** — the API runs on Hetzner (see `DEPLOYMENT_PLAN.md`).
+**Only deploy the dashboard on Vercel** — the API runs on Hetzner (see [DEPLOYMENT_PLAN.md](./docs/DEPLOYMENT_PLAN.md)).
 
 ### Vercel project settings
 

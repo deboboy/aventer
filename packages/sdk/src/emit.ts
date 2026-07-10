@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import {
-  AGENT_V1_SPEC,
-  type AgentEventType,
-  type AgentEventV1,
+  AGENT_V2_SPEC,
+  type AgentEvent,
+  type AgentEventTypeV2,
+  type AgentEventV2,
   type EmitInput,
   emitInputSchema,
 } from "@aventer/schema";
-import { DEFAULT_API_URL, getConfig } from "./config.js";
+import { DEFAULT_API_URL, getConfig, getSpecVersion } from "./config.js";
 
 function resolveApiKey(explicit?: string): string {
   const key =
@@ -22,12 +23,18 @@ function resolveApiKey(explicit?: string): string {
   return key;
 }
 
-function buildEvent(input: EmitInput): AgentEventV1 {
+export function buildEvent(input: EmitInput): AgentEventV2 {
   const cfg = getConfig();
   const parsed = emitInputSchema.parse(input);
+  const specVersion = getSpecVersion();
+  if (specVersion !== AGENT_V2_SPEC) {
+    throw new Error(
+      "agent-v1 emit is not supported for v2 event types. Omit specVersion or set specVersion: 'agent-v2'."
+    );
+  }
 
-  return {
-    spec_version: AGENT_V1_SPEC,
+  const event: AgentEventV2 = {
+    spec_version: AGENT_V2_SPEC,
     id: `evt_${randomUUID().replace(/-/g, "")}`,
     type: parsed.type,
     timestamp: new Date().toISOString(),
@@ -37,25 +44,29 @@ function buildEvent(input: EmitInput): AgentEventV1 {
     data: parsed.data,
     context: parsed.context,
   };
+
+  return event;
 }
 
 export type EmitOptions = {
   apiKey?: string;
   apiUrl?: string;
+  run_id?: string;
+  agent_id?: string;
+  context?: EmitInput["context"];
 };
 
 export type EmitResult = {
-  event: AgentEventV1;
+  event: AgentEvent;
   status: number;
 };
 
-export async function emit(
-  type: AgentEventType,
-  data: Record<string, unknown>,
+export async function postEvent(
+  event: AgentEvent,
   options: EmitOptions = {}
 ): Promise<EmitResult> {
-  const event = buildEvent({ type, data });
-  const apiUrl = options.apiUrl ?? getConfig().apiUrl ?? process.env.AVENTER_API_URL ?? DEFAULT_API_URL;
+  const apiUrl =
+    options.apiUrl ?? getConfig().apiUrl ?? process.env.AVENTER_API_URL ?? DEFAULT_API_URL;
   const apiKey = resolveApiKey(options.apiKey);
 
   const response = await fetch(`${apiUrl}/v1/events`, {
@@ -75,4 +86,17 @@ export async function emit(
   return { event, status: response.status };
 }
 
-export { buildEvent };
+export async function emit(
+  type: AgentEventTypeV2,
+  data: Record<string, unknown>,
+  options: EmitOptions = {}
+): Promise<EmitResult> {
+  const event = buildEvent({
+    type,
+    data,
+    run_id: options.run_id,
+    agent_id: options.agent_id,
+    context: options.context,
+  });
+  return postEvent(event, options);
+}

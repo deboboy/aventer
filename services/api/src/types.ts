@@ -1,6 +1,6 @@
-import type { AgentEventV1 } from "@aventer/schema";
+import type { AgentEvent } from "@aventer/schema";
 
-export type StoredEvent = AgentEventV1 & {
+export type StoredEvent = AgentEvent & {
   received_at: string;
   project_id: string;
 };

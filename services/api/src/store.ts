@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { agentEventV1Schema, type AgentEventV1 } from "@aventer/schema";
+import type { AgentEvent } from "@aventer/schema";
+import { agentEventSchema } from "@aventer/schema";
 import { isDatabaseEnabled } from "./db.js";
-import { listEventsPg, storeEventPg } from "./store-pg.js";
+import { listEventsByRunPg, listEventsPg, storeEventPg } from "./store-pg.js";
 import type { StoredEvent } from "./types.js";
 
 export type { StoredEvent } from "./types.js";
@@ -13,9 +14,9 @@ function notifyListeners(event: StoredEvent): void {
   for (const listener of listeners) listener(event);
 }
 
-function storeEventMemory(event: AgentEventV1, projectId: string): StoredEvent {
+function storeEventMemory(event: AgentEvent, projectId: string): StoredEvent {
   const stored: StoredEvent = {
-    ...agentEventV1Schema.parse(event),
+    ...agentEventSchema.parse(event),
     received_at: new Date().toISOString(),
     project_id: projectId,
   };
@@ -25,10 +26,10 @@ function storeEventMemory(event: AgentEventV1, projectId: string): StoredEvent {
 }
 
 export async function storeEvent(
-  event: AgentEventV1,
+  event: AgentEvent,
   projectId: string
 ): Promise<StoredEvent> {
-  const parsed = agentEventV1Schema.parse(event);
+  const parsed = agentEventSchema.parse(event);
   const receivedAt = new Date().toISOString();
 
   const stored = isDatabaseEnabled()
@@ -48,6 +49,19 @@ export async function listEvents(
   }
 
   return memoryEvents.filter((e) => e.project_id === projectId).slice(0, limit);
+}
+
+export async function listEventsByRun(
+  projectId: string,
+  runId: string
+): Promise<StoredEvent[]> {
+  if (isDatabaseEnabled()) {
+    return listEventsByRunPg(projectId, runId);
+  }
+
+  return memoryEvents
+    .filter((e) => e.project_id === projectId && e.run_id === runId)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }
 
 export function subscribe(listener: (event: StoredEvent) => void): () => void {

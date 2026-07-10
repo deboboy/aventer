@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aventer.dev/schemas/agent-v2.json",
+  "title": "AgentEventV2",
+  "type": "object",
+  "required": [
+    "spec_version",
+    "id",
+    "type",
+    "timestamp",
+    "run_id",
+    "agent_id",
+    "org_id",
+    "data"
+  ],
+  "properties": {
+    "spec_version": { "const": "agent-v2" },
+    "id": { "type": "string", "pattern": "^evt_[a-zA-Z0-9_-]+$" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "task.started",
+        "task.completed",
+        "task.failed",
+        "task.verified",
+        "task.rejected",
+        "tool.called",
+        "tool.failed",
+        "agent.started",
+        "agent.stopped",
+        "llm.error",
+        "eval.started",
+        "eval.completed",
+        "budget.warning",
+        "budget.exceeded",
+        "loop.detected",
+        "run.cancelled"
+      ]
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "agent_id": { "type": "string", "minLength": 1 },
+    "org_id": { "type": "string", "minLength": 1 },
+    "data": { "type": "object", "additionalProperties": true },
+    "context": {
+      "type": "object",
+      "properties": {
+        "parent_id": { "type": "string" },
+        "step": { "type": "integer", "minimum": 0 },
+        "framework": { "type": "string" },
+        "trace_id": { "type": "string" },
+        "span_id": { "type": "string" },
+        "environment": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
